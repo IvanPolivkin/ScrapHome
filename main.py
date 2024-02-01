@@ -24,7 +24,7 @@ soup = BeautifulSoup(html_data, features='lxml')
 print(html_data)
 
 
-link_job = soup.find_all(class_="vacancy-serp-content")
+link_job = soup.find_all(class_="vacancy-serp-item__layout")
 descriptions = soup.find_all(class_="vacancy-description")
 
 if response.status_code == 200:
