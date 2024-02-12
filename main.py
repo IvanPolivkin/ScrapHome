@@ -1,58 +1,48 @@
-# (ссылка на статью) link_job = bloko-link
-#
-# (зарплата) salary = bloko-header-section-2
-#
-# (Имя компании) company = vacancy-serp-item__meta-info-company
-#
-# (город) city = vacancy-serp-item__info
-#
-# список вакансий = vacancy-serp-content
-#
-
 import requests
 from bs4 import BeautifulSoup
-from fake_headers import Headers
 import json
-
+url = 'https://spb.hh.ru/search/vacancy?text=python&area=1&area=2'
 keywords = ['Django', 'Flask']
-
-headers_generator = Headers(os="win", browser="opera")
-
-response = requests.get(url='https://spb.hh.ru/search/vacancy?text=python&area=1&area=2', headers= headers_generator.generate())
-html_data = response.text
-soup = BeautifulSoup(html_data, features='lxml')
-print(html_data)
-
-
-link_job = soup.find_all(class_="vacancy-serp-item__layout")
-descriptions = soup.find_all(class_="vacancy-description")
+headers = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/58.0.3029.110 ',
+}
+response = requests.get(url, headers=headers)
 
 if response.status_code == 200:
+    html = response.text
+    soup = BeautifulSoup(html, 'html.parser')
+    vacancies_list = soup.find('main', class_='vacancy-serp-content')
+    vacancies = vacancies_list.find_all('div', class_='serp-item')
     results = []
-    for link in link_job:
-        links_relative = link.find("a", class_="bloko-link")
+    for vacancy in vacancies:
+        links_relative = vacancy.find("a", class_="bloko-link")
         links_absolute = f'https://adsrv.hh.ru{links_relative}'
-        salary_relative = link.find(class_='bloko-header-section-2')
-        company = link.find(class_='vacancy-serp-item__meta-info-company').text
-        city = link.find(class_='vacancy-serp-item__info').text
-        if salary_relative:
-            salary_relative = salary_relative.text.strip()
+        company = vacancy.find(class_='vacancy-serp-item__meta-info-company').text
+        city = vacancy.find(attrs={'class': 'bloko-text', 'data-qa': 'vacancy-serp__vacancy-address'}).text
+        salary = vacancy.find('span', class_='bloko-header-section-2')
+        if salary:
+            salary = salary.text.strip()
         else:
-            salary_relative = 'Не указана'
+            salary = 'Не указана'
 
-        for descrip in descriptions:
-            description = descriptions.find(class_='row-content').text
-            if any(keyword.lower() in description.lower() for keyword in keywords):
-                information = {
-                    'link': links_absolute,
-                    'company': company,
-                    'city': city,
-                    'salary': salary_relative
-                }
-                results.append(information)
+        results.append({
+            'link': links_absolute,
+            'company': company,
+            'city': city,
+            'salary': salary
+        })
+        # description = vacancy.find(class_='g-user-content')
+        # if any(keyword.lower() in description.lower() for keyword in keywords):
+        #     vacancy_info = {
+        #         'link': link,
+        #         'company': company,
+        #         'city': city,
+        #         'salary': salary
+        #     }
+        #     results.append(vacancy_info)
 
-        with open('vacancies.json', 'w', encoding='utf-8') as file:
-            json.dump(results, file, ensure_ascii=False, indent=4)
+    with open('vacancies.json', 'w', encoding='utf-8') as file:
+        json.dump(results, file, ensure_ascii=False, indent=4)
 
     print('Парсинг завершен. Результаты сохранены в файле vacancies.json.')
 else:
